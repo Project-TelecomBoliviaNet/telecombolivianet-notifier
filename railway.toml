@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Worker sin puerto público — solo necesita conectarse a postgres
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
