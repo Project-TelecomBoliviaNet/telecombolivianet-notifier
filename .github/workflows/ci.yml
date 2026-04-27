@@ -1,0 +1,55 @@
+name: CI — Notifier Python
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Test (Python 3.12)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test
+        run: |
+          if [ ! -f "requirements.txt" ]; then
+            echo "requirements.txt no presente en esta rama — skipping tests"
+            exit 0
+          fi
+          pip install -r requirements.txt
+          if [ ! -d "app" ]; then
+            echo "Módulo 'app' no presente en esta rama — skipping tests"
+            exit 0
+          fi
+          if [ -d "tests" ] && ls tests/test_*.py 2>/dev/null | grep -q .; then
+            PYTHONPATH=. python -m pytest tests/ -v --tb=short
+          else
+            echo "No se encontraron tests — omitiendo"
+          fi
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Docker Build
+        run: |
+          if [ ! -f "Dockerfile" ]; then
+            echo "Dockerfile no presente en esta rama — skipping"
+            exit 0
+          fi
+          docker build -t telecombolivianet-notifier:ci .
