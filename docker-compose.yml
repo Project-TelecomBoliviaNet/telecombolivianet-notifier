@@ -1,0 +1,45 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TelecomBoliviaNet — Worker de Notificaciones (Python)
+#
+#  NO incluye postgres propio: el Worker comparte la BD del monolito
+#  a través de la red externa "telecom_shared_net".
+#
+#  ORDEN DE ARRANQUE:
+#    1. cd backend-monolito  &&  docker compose up -d
+#    2. cd repo-notif-worker &&  docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  notif_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telecom_notif_worker
+    environment:
+      DATABASE_URL:             ${DATABASE_URL:-postgresql://telecom_user:telecom_pass_2025@telecom3_postgres:5432/telecombolivianet2}
+      WHATSAPP_TOKEN:           ${WHATSAPP_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      POLL_INTERVAL_SECONDS:    ${POLL_INTERVAL_SECONDS:-30}
+      TIMEZONE:                 ${TIMEZONE:-America/La_Paz}
+      LOG_LEVEL:                ${LOG_LEVEL:-INFO}
+      HEALTH_PORT:              ${HEALTH_PORT:-8080}
+    ports:
+      - "${HEALTH_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 40s  # FIX-14: tiempo para liberar batch en curso antes de SIGKILL
+    networks:
+      - telecom_shared_net
+
+networks:
+  telecom_shared_net:
+    external: true
+    name: telecom_shared_net   # debe coincidir con el name: del monolito
